@@ -2,4 +2,5 @@
 
 ## Análisis de estimadores RIE para matriz de varianza covarianza
 
-En archivo RIE.ipynb
+
+En archivo RIE.py

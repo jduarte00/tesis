@@ -3,4 +3,7 @@
 ## Análisis de estimadores RIE para matriz de varianza covarianza
 
 
-En archivo RIE.py
+En archivo RIE.ipynb
+## Cálculo del VaR y del ES
+
+En archivo CalculationRisk.ipynb

@@ -2,6 +2,9 @@ import bt
 
 data = bt.get('aapl,msft,c,gs,ge', start='2010-01-01')
 
+
+# selected tiene solo los nombres de los datos. 
+
 # data returns a data frame of n observations and t columns (one per stock)
 
 # se obtiene la media movil tomando las primeras 50 observaciones y sacando el promedio simple, por eso 

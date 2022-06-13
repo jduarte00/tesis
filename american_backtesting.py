@@ -58,7 +58,7 @@ class WeightHCAA(bt.Algo):
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
             mat_X=returns,
-            n_clusters=k,
+            cutoff_point=2.65,
             custom_corr=rie_estimator.get_rie,
             inverse_data=False,
         )
@@ -114,7 +114,7 @@ class WeightHCAAclustering(bt.Algo):
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
             mat_X=returns.values,
-            n_clusters=k,
+            cutoff_point=2.65,
             custom_corr=wrapper_function_cluster,
             inverse_data=False,
         )
@@ -162,7 +162,7 @@ class WeightHCAAsimple(bt.Algo):
         k = 9
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
-        index, weights = hcaa_alocation(mat_X=returns.values, n_clusters=k)
+        index, weights = hcaa_alocation(mat_X=returns.values, cutoff_point=2.65)
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
         target.temp["weights"] = new_weights
@@ -216,7 +216,7 @@ class weightNaive(bt.Algo):
 rie_testing = bt.Strategy(
     "rie_testing",
     algos=[
-        bt.algos.RunMonthly(run_on_first_date=False),
+        bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.SelectAll(),
         WeightHCAA(),
         bt.algos.Rebalance(),
@@ -226,7 +226,7 @@ rie_testing = bt.Strategy(
 corr_testing = bt.Strategy(
     "corr_testing",
     algos=[
-        bt.algos.RunMonthly(run_on_first_date=False),
+        bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.SelectAll(),
         WeightHCAAsimple(),
         bt.algos.Rebalance(),
@@ -236,7 +236,7 @@ corr_testing = bt.Strategy(
 clust_testing = bt.Strategy(
     "clustering_testing",
     algos=[
-        bt.algos.RunMonthly(run_on_first_date=False),
+        bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.SelectAll(),
         WeightHCAAclustering(),
         bt.algos.Rebalance(),
@@ -246,7 +246,7 @@ clust_testing = bt.Strategy(
 equal_testing = bt.Strategy(
     "equal_testing",
     algos=[
-        bt.algos.RunYearly(run_on_first_date=False),
+        bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.SelectAll(),
         weightNaive(),
         bt.algos.Rebalance(),

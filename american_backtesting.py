@@ -6,6 +6,8 @@ import ffn
 from hcaa_implementation import hcaa_alocation
 import rie_estimator
 import csestimator
+import contextlib
+import io
 
 
 prices = pd.read_csv(
@@ -14,9 +16,16 @@ prices = pd.read_csv(
     parse_dates=True,
 )
 
+#treshold = 2.1
+#treshold = 3
+#treshold = 2.5
+treshold = 3.7
+backdays = 540
+periods = 30
+
 
 def wrapper_function_cluster(X_matrix):
-    return csestimator.get_shrinkage_est(X_matrix, alpha=1)
+    return csestimator.get_shrinkage_est(X_matrix, alpha=0.5)
 
 
 class WeightHCAA(bt.Algo):
@@ -48,7 +57,7 @@ class WeightHCAA(bt.Algo):
 
         # target.universe trae un dataframe que contiene todas las columnas pero en las filas
         # , que son las observaciones diarias, trae solo hasta target.now
-        dataset = target.universe[selected].dropna()
+        dataset = target.universe[selected].dropna().tail(backdays)
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
@@ -58,7 +67,7 @@ class WeightHCAA(bt.Algo):
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
             mat_X=returns,
-            cutoff_point=2.65,
+            cutoff_point=treshold,
             custom_corr=rie_estimator.get_rie,
             inverse_data=False,
         )
@@ -104,7 +113,7 @@ class WeightHCAAclustering(bt.Algo):
 
         # target.universe trae un dataframe que contiene todas las columnas pero en las filas
         # , que son las observaciones diarias, trae solo hasta target.now
-        dataset = target.universe[selected].dropna()
+        dataset = target.universe[selected].dropna().tail(backdays)
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
@@ -114,7 +123,7 @@ class WeightHCAAclustering(bt.Algo):
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
             mat_X=returns.values,
-            cutoff_point=2.65,
+            cutoff_point=treshold,
             custom_corr=wrapper_function_cluster,
             inverse_data=False,
         )
@@ -154,7 +163,7 @@ class WeightHCAAsimple(bt.Algo):
 
         # target.universe trae un dataframe que contiene todas las columnas pero en las filas
         # , que son las observaciones diarias, trae solo hasta target.now
-        dataset = target.universe[selected].dropna()
+        dataset = target.universe[selected].dropna().tail(backdays)
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
@@ -162,7 +171,7 @@ class WeightHCAAsimple(bt.Algo):
         k = 9
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
-        index, weights = hcaa_alocation(mat_X=returns.values, cutoff_point=2.65)
+        index, weights = hcaa_alocation(mat_X=returns.values, cutoff_point=treshold)
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
         target.temp["weights"] = new_weights
@@ -216,7 +225,7 @@ class weightNaive(bt.Algo):
 rie_testing = bt.Strategy(
     "rie_testing",
     algos=[
-        bt.algos.RunQuarterly(run_on_first_date=False),
+        bt.algos.RunEveryNPeriods(n= periods, offset = backdays),
         bt.algos.SelectAll(),
         WeightHCAA(),
         bt.algos.Rebalance(),
@@ -226,7 +235,7 @@ rie_testing = bt.Strategy(
 corr_testing = bt.Strategy(
     "corr_testing",
     algos=[
-        bt.algos.RunQuarterly(run_on_first_date=False),
+        bt.algos.RunEveryNPeriods(n= periods, offset = backdays),
         bt.algos.SelectAll(),
         WeightHCAAsimple(),
         bt.algos.Rebalance(),
@@ -236,7 +245,7 @@ corr_testing = bt.Strategy(
 clust_testing = bt.Strategy(
     "clustering_testing",
     algos=[
-        bt.algos.RunQuarterly(run_on_first_date=False),
+        bt.algos.RunEveryNPeriods(n= periods, offset = backdays),
         bt.algos.SelectAll(),
         WeightHCAAclustering(),
         bt.algos.Rebalance(),
@@ -246,7 +255,7 @@ clust_testing = bt.Strategy(
 equal_testing = bt.Strategy(
     "equal_testing",
     algos=[
-        bt.algos.RunQuarterly(run_on_first_date=False),
+        bt.algos.RunEveryNPeriods(n= periods, offset = backdays),
         bt.algos.SelectAll(),
         weightNaive(),
         bt.algos.Rebalance(),
@@ -259,6 +268,11 @@ backtest_clust = bt.Backtest(clust_testing, prices)
 backtest_equal = bt.Backtest(equal_testing, prices)
 
 report = bt.run(backtest_rie, backtest_corr, backtest_clust, backtest_equal)
-report.display()
+file_name = "tresh_{}_back_{}_periods_{}_american".format(treshold,backdays, periods)
+with contextlib.redirect_stdout(io.StringIO()) as f:
+    report.display()
+file_to_save = open('./results_american/' +file_name+'.txt', 'a')
+file_to_save.write(f.getvalue())
 fig = report.plot()
-fig.figure.savefig("image_americannn.png")
+fig.figure.savefig('./results_american/' +file_name+".png")
+

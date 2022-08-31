@@ -4,3 +4,5 @@ __pycache__/
 returns/
 .idea/
 .vscode/
+results_american/
+results_european/

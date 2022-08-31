@@ -1,14 +1,17 @@
-import bt
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import ffn
-from hcaa_implementation import hcaa_alocation
-import rie_estimator
-import csestimator
 import contextlib
 import io
 
+import bt
+import csestimator
+import kneed
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import rie_estimator
+import scipy.spatial.distance as ssd
+from hcaa_implementation import hcaa_alocation
+from scipy.cluster.hierarchy import fcluster, linkage
+from sklearn.metrics import calinski_harabasz_score
 
 prices = pd.read_csv(
     "/home/dum/Desktop/data/european_market_original_clean.csv",
@@ -19,13 +22,45 @@ prices = pd.read_csv(
 #treshold = 2.1
 #treshold = 3
 #treshold = 2.5
-treshold = 3.5
-backdays = 540
+treshold = 3.7
+backdays = 360
 periods = 30
 
 def wrapper_function_cluster(X_matrix):
     return csestimator.get_shrinkage_est(X_matrix, alpha=0.5)
 
+def get_optimal_k_eigen(corr_matrix, N, T):
+    eigenvals = np.linalg.eigvals(corr_matrix)
+    count = (eigenvals > 1 + 2 * np.sqrt(N/T) + N/T).sum()
+    return count
+
+def get_optimal_k_calenski(dataset, bottom_range, top_range, corr_function):
+    corr_mat = corr_function(dataset.T)
+    print(corr_mat.shape)
+    D_matrix = np.sqrt(2*(1- corr_mat))
+    D_matrix = np.around(D_matrix, decimals=7)
+    D_condensed = ssd.squareform(D_matrix)
+    Z = linkage(D_condensed, 'ward', optimal_ordering = True)
+    indices = []
+    for i in range(bottom_range, top_range):
+        labels = fcluster(Z, i, criterion='maxclust')
+        indices.append(calinski_harabasz_score(dataset.T, labels))
+    pd.Series(indices).plot()
+    print(kneed.KneeLocator(range(bottom_range, top_range), indices, curve = 'convex', direction = 'decreasing').knee)
+
+def get_optimal_k_calenski_rie(dataset, bottom_range, top_range, corr_function):
+    corr_mat = corr_function(dataset)
+    print(corr_mat.shape)
+    D_matrix = np.sqrt(2*(1- corr_mat))
+    D_matrix = np.around(D_matrix, decimals=7)
+    D_condensed = ssd.squareform(D_matrix)
+    Z = linkage(D_condensed, 'ward', optimal_ordering = True)
+    indices = []
+    for i in range(bottom_range, top_range):
+        labels = fcluster(Z, i, criterion='maxclust')
+        indices.append(calinski_harabasz_score(dataset.T, labels))
+    pd.Series(indices).plot()
+    print(kneed.KneeLocator(range(bottom_range, top_range), indices, curve = 'convex', direction = 'decreasing').knee)
 
 class WeightHCAA(bt.Algo):
     """
@@ -59,6 +94,10 @@ class WeightHCAA(bt.Algo):
         dataset = target.universe[selected].dropna().tail(backdays)
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
+        # usando calenski
+        k = get_optimal_k_calenski_rie(returns, 2, 50, rie_estimator.get_rie)
+        #k = get_optimal_k_eigen(rie_estimator.get_rie(returns), dataset.shape[0], dataset.shape[1])
+        
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
@@ -70,6 +109,10 @@ class WeightHCAA(bt.Algo):
         # index, weights =hcaa_alocation(mat_X =dataset.values, n_clusters = k)
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
+        if 'n_clusters' not in target.perm:
+            target.perm['n_clusters'] = [k]
+        else:
+            target.perm['n_clusters'].append(k)
         target.temp["weights"] = new_weights
         return True
 
@@ -114,7 +157,9 @@ class WeightHCAAclustering(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        k = 9
+        k = get_optimal_k_eigen(wrapper_function_cluster(dataset), dataset.shape[0], dataset.shape[1])
+        # usando calenski
+        #k = get_optimal_k_calenski_rie(returns, 2, 50,wrapper_function_cluster)
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
@@ -126,6 +171,10 @@ class WeightHCAAclustering(bt.Algo):
         # index, weights =hcaa_alocation(mat_X =dataset.values, n_clusters = k)
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
+        if 'n_clusters' not in target.perm:
+            target.perm['n_clusters'] = [k]
+        else:
+            target.perm['n_clusters'].append(k)
         target.temp["weights"] = new_weights
         return True
 
@@ -164,12 +213,17 @@ class WeightHCAAsimple(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        k = 9
+        k = get_optimal_k_eigen(np.corrcoef(dataset.values.T), dataset.shape[0], dataset.shape[1])
+        # k = get_optimal_k_calenski(returns, 2, 50,np.corrcoef)
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(mat_X=returns.values, cutoff_point=treshold)
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
+        if 'n_clusters' not in target.perm:
+            target.perm['n_clusters'] = [k]
+        else:
+            target.perm['n_clusters'].append(k)
         target.temp["weights"] = new_weights
         return True
 
@@ -269,11 +323,15 @@ backtest_clust = bt.Backtest(clust_testing, prices)
 backtest_equal = bt.Backtest(equal_testing, prices)
 
 report = bt.run(backtest_rie, backtest_corr, backtest_clust, backtest_equal)
-file_name = "tresh_{}_back_{}_periods_{}_europeo".format(treshold,backdays, periods)
+file_name = f'tec_valprop_back_{backdays}_periods_{periods}'
 with contextlib.redirect_stdout(io.StringIO()) as f:
     report.display()
-file_to_save = open('./results_european/' +file_name+'.txt', 'a')
+file_to_save = open('./results_european/' +file_name+'.txt', 'w')
 file_to_save.write(f.getvalue())
 fig = report.plot()
 fig.figure.savefig('./results_european/' +file_name+".png")
+report.prices.to_csv(f'./results_european/prices_{file_name}.csv')
+report.prices.to_returns().to_csv(f'./results_european/returns_{file_name}.csv')
+data =  pd.DataFrame({'RIE': report.backtests['rie_testing'].strategy.perm['n_clusters'], 'Est. Muestral':report.backtests['corr_testing'].strategy.perm['n_clusters'], 'ECA':  report.backtests['clustering_testing'].strategy.perm['n_clusters']})
+data.to_csv(f'./results_european/n_clusters_{file_name}.csv')
 

@@ -12,9 +12,16 @@ import scipy.spatial.distance as ssd
 from hcaa_implementation import hcaa_alocation
 from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.metrics import calinski_harabasz_score
+import matplotlib
+import matplotlib.dates as mdates
+
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gcf().autofmt_xdate()
+
+matplotlib.use('TkAgg')
 
 prices = pd.read_csv(
-    "/home/dum/Desktop/data/european_market_original_clean.csv",
+    "./european_market_original_clean.csv",
     index_col="Date",
     parse_dates=True,
 )
@@ -410,15 +417,21 @@ report.get_weights().to_csv(f"./results_european/weights_{file_name}.csv")
 # así hay que hacer el dataframe del numero de grupos para cada estrategia, falta ver como graficar utilizando todos los días . 
 # lol = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]).reshape(-1,2))
 
-
-data = pd.DataFrame(
-    {
-        "RIE": report.backtests["rie_testing"].strategy.perm["n_clusters"],
-        "Est. Muestral": report.backtests["corr_testing"].strategy.perm["n_clusters"],
-        "ECA": report.backtests["clustering_testing"].strategy.perm["n_clusters"],
-    }
-)
-data.to_csv(f"./results_european/n_clusters_{file_name}.csv")
+fig, ax = plt.subplots()
+idx = pd.date_range('2013-06-25', '2021-12-10')
+rie_clust = pd.DataFrame(np.array(report.backtests["rie_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+rie_clust_complete = rie_clust.reindex(idx, method = 'ffill')
+plt.plot(rie_clust_complete['n_clusters'], label = 'RIE')
+corr_clust = pd.DataFrame(np.array(report.backtests["corr_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+corr_clust_complete = corr_clust.reindex(idx, method = 'ffill')
+plt.plot(corr_clust_complete['n_clusters'], label = "Estimador Muestral")
+clust_clust = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+clust_clust_complete = clust_clust.reindex(idx, method = 'ffill')
+plt.plot(clust_clust_complete['n_clusters'], label = 'ECA')
+plt.xlabel('Fecha')
+plt.ylabel('Número de grupos')
+plt.legend(['RIE', 'Estimador Muestral', 'ECA'])
+plt.savefig(f"./results_european/{file_name}_cluster_prog.jpeg")
 
 # (report.get_weights("equal_testing").iloc[361:,1:]**2).sum().sum() / 2089
 # (report.get_weights("corr_testing").iloc[361:,1:]**2).sum().sum() / 2089

@@ -14,7 +14,7 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.metrics import calinski_harabasz_score
 
 prices = pd.read_csv(
-    "/home/dum/Desktop/data/sp_500_original_clean.csv",
+    "./sp_500_original_clean.csv",
     index_col="Date",
     parse_dates=True,
 )

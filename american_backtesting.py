@@ -12,6 +12,13 @@ import scipy.spatial.distance as ssd
 from hcaa_implementation import hcaa_alocation
 from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.metrics import calinski_harabasz_score
+import matplotlib
+import matplotlib.dates as mdates
+
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+plt.gcf().autofmt_xdate()
+
+matplotlib.use('TkAgg')
 
 prices = pd.read_csv(
     "./sp_500_original_clean.csv",
@@ -23,7 +30,7 @@ prices = pd.read_csv(
 # treshold = 3                         
 # treshold = 2.5
 treshold = 3.7
-backdays = 613
+backdays = 920
 periods = 30
 
 
@@ -119,11 +126,10 @@ class WeightHCAA(bt.Algo):
         dataset = target.universe[selected].dropna().tail(backdays)
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
-        # TODO
-        # determinar K
         k = get_optimal_k_eigen(rie_estimator.get_rie(returns), dataset.shape[0], dataset.shape[1])
         # usando calenski
         # k = get_optimal_k_calenski_rie(returns, 2, 50, rie_estimator.get_rie)
+
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
@@ -136,9 +142,9 @@ class WeightHCAA(bt.Algo):
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
         if "n_clusters" not in target.perm:
-            target.perm["n_clusters"] = [k]
+            target.perm["n_clusters"] = [[target.now, k]]
         else:
-            target.perm["n_clusters"].append(k)
+            target.perm["n_clusters"].append([target.now, k])
         target.temp["weights"] = new_weights
         return True
 
@@ -198,9 +204,9 @@ class WeightHCAAclustering(bt.Algo):
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
         if "n_clusters" not in target.perm:
-            target.perm["n_clusters"] = [k]
+            target.perm["n_clusters"] = [[target.now, k]]
         else:
-            target.perm["n_clusters"].append(k)
+            target.perm["n_clusters"].append([target.now, k])
         target.temp["weights"] = new_weights
         return True
 
@@ -247,9 +253,9 @@ class WeightHCAAsimple(bt.Algo):
         # con eso formar el dict y guardarlo en target.temp["weights"]
         new_weights = dict(zip(dataset.columns[index], weights))
         if "n_clusters" not in target.perm:
-            target.perm["n_clusters"] = [k]
+            target.perm["n_clusters"] = [[target.now, k]]
         else:
-            target.perm["n_clusters"].append(k)
+            target.perm["n_clusters"].append([target.now, k])
         target.temp["weights"] = new_weights
         return True
 
@@ -354,12 +360,7 @@ fig.figure.savefig("./results_american/" + file_name + ".png")
 report.prices.to_csv(f"./results_american/prices_{file_name}.csv")
 report.prices.to_returns().to_csv(f"./results_american/returns_{file_name}.csv")
 report.get_weights().to_csv(f"./results_american/weights_{file_name}.csv")
-data = pd.DataFrame(
-    {
-        "RIE": report.backtests["rie_testing"].strategy.perm["n_clusters"],
-        "Est. Muestral": report.backtests["corr_testing"].strategy.perm["n_clusters"],
-        "ECA": report.backtests["clustering_testing"].strategy.perm["n_clusters"],
-    }
-)
-data.to_csv(f"./results_american/n_clusters_{file_name}.csv")
 
+pd.DataFrame(np.array(report.backtests["rie_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_american/clusters_rie_{file_name}.csv")
+pd.DataFrame(np.array(report.backtests["corr_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_american/clusters_corr_{file_name}.csv")
+pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_american/clusters_clust_{file_name}.csv")

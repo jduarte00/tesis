@@ -30,8 +30,8 @@ prices = pd.read_csv(
 # treshold = 3
 # treshold = 2.5
 treshold = 3.7
-backdays = 360
-periods = 90
+backdays = 540
+periods = 30
 
 
 def wrapper_function_cluster(X_matrix):
@@ -355,7 +355,6 @@ rie_testing = bt.Strategy(
 corr_testing = bt.Strategy(
     "corr_testing",
     algos=[
-        # bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.RunEveryNPeriods(n=periods, offset=backdays),
         bt.algos.SelectAll(),
         WeightHCAAsimple(),
@@ -366,7 +365,6 @@ corr_testing = bt.Strategy(
 clust_testing = bt.Strategy(
     "clustering_testing",
     algos=[
-        # bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.RunEveryNPeriods(n=periods, offset=backdays),
         bt.algos.SelectAll(),
         WeightHCAAclustering(),
@@ -378,7 +376,6 @@ clust_testing = bt.Strategy(
 equal_testing = bt.Strategy(
     "equal_testing",
     algos=[
-        # bt.algos.RunQuarterly(run_on_first_date=False),
         bt.algos.RunEveryNPeriods(n=periods, offset=backdays),
         bt.algos.SelectAll(),
         weightNaive(),
@@ -417,21 +414,24 @@ report.get_weights().to_csv(f"./results_european/weights_{file_name}.csv")
 # así hay que hacer el dataframe del numero de grupos para cada estrategia, falta ver como graficar utilizando todos los días . 
 # lol = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]).reshape(-1,2))
 
-fig, ax = plt.subplots()
-idx = pd.date_range('2013-06-25', '2021-12-10')
-rie_clust = pd.DataFrame(np.array(report.backtests["rie_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
-rie_clust_complete = rie_clust.reindex(idx, method = 'ffill')
-plt.plot(rie_clust_complete['n_clusters'], label = 'RIE')
-corr_clust = pd.DataFrame(np.array(report.backtests["corr_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
-corr_clust_complete = corr_clust.reindex(idx, method = 'ffill')
-plt.plot(corr_clust_complete['n_clusters'], label = "Estimador Muestral")
-clust_clust = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
-clust_clust_complete = clust_clust.reindex(idx, method = 'ffill')
-plt.plot(clust_clust_complete['n_clusters'], label = 'ECA')
-plt.xlabel('Fecha')
-plt.ylabel('Número de grupos')
-plt.legend(['RIE', 'Estimador Muestral', 'ECA'])
-plt.savefig(f"./results_european/{file_name}_cluster_prog.jpeg")
+pd.DataFrame(np.array(report.backtests["rie_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_european/clusters_rie_{file_name}.csv")
+pd.DataFrame(np.array(report.backtests["corr_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_european/clusters_corr_{file_name}.csv")
+pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date').to_csv(f"./results_european/clusters_clust_{file_name}.csv")
+# fig, ax = plt.subplots()
+# idx = pd.date_range('2013-06-25', '2021-12-10')
+# rie_clust = pd.DataFrame(np.array(report.backtests["rie_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+# rie_clust_complete = rie_clust.reindex(idx, method = 'ffill')
+# plt.plot(rie_clust_complete['n_clusters'], label = 'RIE')
+# corr_clust = pd.DataFrame(np.array(report.backtests["corr_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+# corr_clust_complete = corr_clust.reindex(idx, method = 'ffill')
+# plt.plot(corr_clust_complete['n_clusters'], label = "Estimador Muestral")
+# clust_clust = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]), columns = ['date', 'n_clusters']).set_index('date')
+# clust_clust_complete = clust_clust.reindex(idx, method = 'ffill')
+# plt.plot(clust_clust_complete['n_clusters'], label = 'ECA')
+# plt.xlabel('Fecha')
+# plt.ylabel('Número de grupos')
+# plt.legend(['RIE', 'Estimador Muestral', 'ECA'])
+# plt.savefig(f"./results_european/{file_name}_cluster_prog.jpeg")
 
 # (report.get_weights("equal_testing").iloc[361:,1:]**2).sum().sum() / 2089
 # (report.get_weights("corr_testing").iloc[361:,1:]**2).sum().sum() / 2089

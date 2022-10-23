@@ -189,7 +189,7 @@ class WeightHCAAclustering(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        # k = get_optimal_k_eigen(wrapper_function_cluster(dataset), dataset.shape[0], dataset.shape[1])
+        # k = get_optimal_k_eigen(wrapper_function_cluster(dataset), returns.shape[0], returns.shape[1])
         # usando calenski
         k = get_optimal_k_calenski_rie(returns, 2, 50, wrapper_function_cluster)
         # llamar la funcion de HCAA mía sobre el dataset
@@ -245,7 +245,7 @@ class WeightHCAAsimple(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        # k = get_optimal_k_eigen(np.corrcoef(dataset.values.T), dataset.shape[0], dataset.shape[1])
+        # k = get_optimal_k_eigen(np.corrcoef(dataset.values.T), returns.shape[0], returns.shape[1])
         k = get_optimal_k_calenski(returns, 2, 50, np.corrcoef)
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices

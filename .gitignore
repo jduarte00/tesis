@@ -6,3 +6,4 @@ returns/
 .vscode/
 results_american/
 results_european/
+.envrc

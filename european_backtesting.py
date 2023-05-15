@@ -30,7 +30,7 @@ prices = pd.read_csv(
 # treshold = 3
 # treshold = 2.5
 treshold = 3.7
-backdays = 540
+backdays = prices.shape[1] * 2
 periods = 30
 
 
@@ -46,7 +46,7 @@ def get_optimal_k_eigen(corr_matrix, N, T):
 
 def get_optimal_k_calenski(dataset, bottom_range, top_range, corr_function):
     corr_mat = corr_function(dataset.T)
-    print(corr_mat.shape)
+    #print(corr_mat.shape)
     D_matrix = np.sqrt(2 * (1 - corr_mat))
     D_matrix = np.around(D_matrix, decimals=7)
     D_condensed = ssd.squareform(D_matrix)
@@ -56,14 +56,14 @@ def get_optimal_k_calenski(dataset, bottom_range, top_range, corr_function):
         labels = fcluster(Z, i, criterion="maxclust")
         indices.append(calinski_harabasz_score(dataset.T, labels))
     # pd.Series(indices).plot()
-    print(
-        kneed.KneeLocator(
-            range(bottom_range, top_range),
-            indices,
-            curve="convex",
-            direction="decreasing",
-        ).knee
-    )
+    # print(
+    #     kneed.KneeLocator(
+    #         range(bottom_range, top_range),
+    #         indices,
+    #         curve="convex",
+    #         direction="decreasing",
+    #     ).knee
+    # )
     return kneed.KneeLocator(
         range(bottom_range, top_range), indices, curve="convex", direction="decreasing"
     ).knee
@@ -71,7 +71,7 @@ def get_optimal_k_calenski(dataset, bottom_range, top_range, corr_function):
 
 def get_optimal_k_calenski_rie(dataset, bottom_range, top_range, corr_function):
     corr_mat = corr_function(dataset)
-    print(corr_mat.shape)
+    #print(corr_mat.shape)
     D_matrix = np.sqrt(2 * (1 - corr_mat))
     D_matrix = np.around(D_matrix, decimals=7)
     D_condensed = ssd.squareform(D_matrix)
@@ -81,14 +81,14 @@ def get_optimal_k_calenski_rie(dataset, bottom_range, top_range, corr_function):
         labels = fcluster(Z, i, criterion="maxclust")
         indices.append(calinski_harabasz_score(dataset.T, labels))
     # pd.Series(indices).plot()
-    print(
-        kneed.KneeLocator(
-            range(bottom_range, top_range),
-            indices,
-            curve="convex",
-            direction="decreasing",
-        ).knee
-    )
+    # print(
+    #     kneed.KneeLocator(
+    #         range(bottom_range, top_range),
+    #         indices,
+    #         curve="convex",
+    #         direction="decreasing",
+    #     ).knee
+    # )
     return kneed.KneeLocator(
         range(bottom_range, top_range), indices, curve="convex", direction="decreasing"
     ).knee
@@ -127,8 +127,8 @@ class WeightHCAA(bt.Algo):
         # returns = dataset.pct_change().iloc[1:]
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # usando calenski
-        k = get_optimal_k_calenski_rie(returns, 2, 50, rie_estimator.get_rie)
-        # k = get_optimal_k_eigen(rie_estimator.get_rie(returns), dataset.shape[0], dataset.shape[1])
+        # k = get_optimal_k_calenski_rie(returns, 2, 50, rie_estimator.get_rie)
+        k = get_optimal_k_eigen(rie_estimator.get_rie(returns), dataset.shape[0], dataset.shape[1])
 
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
@@ -189,9 +189,9 @@ class WeightHCAAclustering(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        # k = get_optimal_k_eigen(wrapper_function_cluster(dataset), returns.shape[0], returns.shape[1])
+        k = get_optimal_k_eigen(wrapper_function_cluster(dataset), returns.shape[0], returns.shape[1])
         # usando calenski
-        k = get_optimal_k_calenski_rie(returns, 2, 50, wrapper_function_cluster)
+        # k = get_optimal_k_calenski_rie(returns, 2, 50, wrapper_function_cluster)
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(
@@ -245,8 +245,8 @@ class WeightHCAAsimple(bt.Algo):
         returns = (np.log(dataset) - np.log(dataset.shift(1))).iloc[1:]
         # TODO
         # determinar K
-        # k = get_optimal_k_eigen(np.corrcoef(dataset.values.T), returns.shape[0], returns.shape[1])
-        k = get_optimal_k_calenski(returns, 2, 50, np.corrcoef)
+        k = get_optimal_k_eigen(np.corrcoef(dataset.values.T), returns.shape[0], returns.shape[1])
+        # k = get_optimal_k_calenski(returns, 2, 50, np.corrcoef)
         # llamar la funcion de HCAA mía sobre el dataset
         # regresar los pesos y los índices
         index, weights = hcaa_alocation(mat_X=returns.values, n_clusters=k)
@@ -400,7 +400,7 @@ backtest_equal = bt.Backtest(equal_testing, prices)
 #backtest_markowitz = bt.Backtest(markowitz_testing, prices)
 
 report = bt.run(backtest_rie, backtest_corr, backtest_clust, backtest_equal)
-file_name = f"tec_calenski_back_{backdays}_periods_{periods}"
+file_name = f"tec_val_prop_{backdays}_periods_{periods}"
 with contextlib.redirect_stdout(io.StringIO()) as f:
     report.display()
 file_to_save = open("./results_european/" + file_name + ".txt", "w")
@@ -409,7 +409,10 @@ fig = report.plot()
 fig.figure.savefig("./results_european/" + file_name + ".png")
 report.prices.to_csv(f"./results_european/prices_{file_name}.csv")
 report.prices.to_returns().to_csv(f"./results_european/returns_{file_name}.csv")
-report.get_weights().to_csv(f"./results_european/weights_{file_name}.csv")
+report.get_weights('rie_testing').to_csv(f"./results_european/weights_{file_name}_rie.csv")
+report.get_weights('corr_testing').to_csv(f"./results_european/weights_{file_name}_corr.csv")
+report.get_weights('clustering_testing').to_csv(f"./results_european/weights_{file_name}_clust.csv")
+report.get_weights('equal_testing').to_csv(f"./results_european/weights_{file_name}_equal.csv")
 
 # así hay que hacer el dataframe del numero de grupos para cada estrategia, falta ver como graficar utilizando todos los días . 
 # lol = pd.DataFrame(np.array(report.backtests["clustering_testing"].strategy.perm["n_clusters"]).reshape(-1,2))

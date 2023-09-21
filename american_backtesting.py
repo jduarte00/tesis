@@ -18,7 +18,7 @@ import matplotlib.dates as mdates
 plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
 plt.gcf().autofmt_xdate()
 
-matplotlib.use('TkAgg')
+
 
 prices = pd.read_csv(
     "./sp_500_original_clean.csv",

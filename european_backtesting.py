@@ -30,7 +30,7 @@ prices = pd.read_csv(
 # treshold = 2.5
 treshold = 3.7
 backdays = prices.shape[1] * 2
-periods = 30
+periods = 90
 
 
 def wrapper_function_cluster(X_matrix):

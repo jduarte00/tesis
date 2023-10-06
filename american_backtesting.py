@@ -15,9 +15,8 @@ from sklearn.metrics import calinski_harabasz_score
 import matplotlib
 import matplotlib.dates as mdates
 
-plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
-plt.gcf().autofmt_xdate()
-
+#plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%Y'))
+#plt.gcf().autofmt_xdate()
 
 
 prices = pd.read_csv(
